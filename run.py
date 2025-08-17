@@ -100,13 +100,10 @@ if __name__ == "__main__":
     if args.source:
         sourceDir = args.source.split(',')
         printMy("sourceDir:", sourceDir)
-        
-        # 使用进程池处理多个文件，支持动态添加任务
+
+        # 使用进程池处理多个文件
         with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = {}
-            task_queue = []
-            
-            # 先收集所有任务
+            futures = []
             for dir in sourceDir:
                 printMy("dir:", dir)
                 # 深度遍历目录中所有图片
@@ -116,26 +113,15 @@ if __name__ == "__main__":
                         fileName, fileSuffix = os.path.splitext(file)
                         fileSuffix = fileSuffix.lower()
                         if fileSuffix in allImgType:
-                            task_queue.append(os.path.join(root, file))
-            
-            # 动态提交任务并处理完成的任务
-            while futures or task_queue:
-                # 提交新任务直到达到最大工作进程数
-                while task_queue and len(futures) < args.max_workers:
-                    image_path = task_queue.pop(0)
-                    future = executor.submit(run, args, image_path, args.prompt, args.seed)
-                    futures[future] = image_path
-                
-                # 检查已完成的任务
-                if futures:
-                    # 等待至少一个任务完成
-                    done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
-                    for future in done:
-                        image_path = futures.pop(future)
-                        try:
-                            future.result()
-                            printMy(f"完成任务: {image_path}")
-                        except Exception as e:
-                            printMy(f"任务 {image_path} 出错:", e)
+                            # 提交任务到进程池
+                            future = executor.submit(run, args, os.path.join(root, file), args.prompt, args.seed)
+                            futures.append(future)
+
+            # 等待所有任务完成
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    printMy("error:", e)
     else:
         run(args, args.image, args.prompt, args.seed)
