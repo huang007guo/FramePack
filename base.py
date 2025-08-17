@@ -87,7 +87,7 @@ os.makedirs(outputs_folder, exist_ok=True)
 
 
 @torch.no_grad()
-def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, file_name=""):
+def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, fps=30, file_name=""):
     """
     执行视频生成任务的主工作函数。该函数负责处理输入图像、文本提示、负向提示，并通过扩散模型生成视频帧，
     最终将结果编码为MP4视频文件。
@@ -106,12 +106,13 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
         gpu_memory_preservation (float): GPU内存保留量（GB），用于模型加载/卸载策略。范围: 6-128。默认值: 6。
         use_teacache (bool): 是否启用TeaCache优化。默认值: True。
         mp4_crf (int): 输出MP4视频的质量参数（CRF值）。范围: 0-100。默认值: 16。
+        fps (int): 输出视频的帧率。默认值: 30。
         file_name (str): 输出文件名。默认值: ""。
 
     返回:
         None: 结果通过stream.output_queue输出。
     """
-    total_latent_sections = (total_second_length * 30) / (latent_window_size * 4)
+    total_latent_sections = (total_second_length * fps) / (latent_window_size * 4)
     total_latent_sections = int(max(round(total_latent_sections), 1))
 
     job_id = generate_timestamp()
@@ -244,7 +245,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
                 current_step = d['i'] + 1
                 percentage = int(100.0 * current_step / steps)
                 hint = f'Sampling {current_step}/{steps}'
-                desc = f'Total generated frames: {int(max(0, total_generated_latent_frames * 4 - 3))}, Video length: {max(0, (total_generated_latent_frames * 4 - 3) / 30) :.2f} seconds (FPS-30). The video is being extended now ...'
+                desc = f'Total generated frames: {int(max(0, total_generated_latent_frames * 4 - 3))}, Video length: {max(0, (total_generated_latent_frames * 4 - 3) / fps) :.2f} seconds (FPS-{fps}). The video is being extended now ...'
                 stream.output_queue.push(('progress', (preview, desc, make_progress_bar_html(percentage, hint))))
                 return
 
@@ -305,7 +306,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
 
             output_filename = os.path.join(outputs_folder, f'{file_name}_{job_id}_{total_generated_latent_frames}.mp4')
 
-            save_bcthw_as_mp4(history_pixels, output_filename, fps=30, crf=mp4_crf)
+            save_bcthw_as_mp4(history_pixels, output_filename, fps=fps, crf=mp4_crf)
 
             print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
 

@@ -16,7 +16,7 @@ from filetype.types import IMAGE as FILETYPE_IMAGE, VIDEO as FILETYPE_VIDEO
 
 # 添加多进程相关导入
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
 allImgType = ["." + now_file_type.EXTENSION for now_file_type in FILETYPE_IMAGE]
 allImgType.append(".jpeg")
@@ -43,6 +43,8 @@ parser.add_argument("-S", '--source', help="源目录多个用英文逗号分割
 # 添加视频生成相关参数
 parser.add_argument("--image", type=str, help="Path to input image")
 parser.add_argument("--prompt", type=str, default="", help="Text prompt for video generation")
+# 提示词数组 [][][][]形式 todo hank 待处理
+parser.add_argument("--prompt_arr", type=str, nargs='+', help="Text prompt for video generation")
 parser.add_argument("--n_prompt", type=str, default="", help="Negative prompt (default: '')")
 parser.add_argument("--seed", type=int, default=None, help="Random seed (default: 31337)")
 parser.add_argument("--total_second_length", type=float, default=5.0, help="Total video length in seconds (default: 5.0)")
@@ -54,8 +56,9 @@ parser.add_argument("--rs", type=float, default=0.0, help="Guidance rescale fact
 parser.add_argument("--gpu_memory_preservation", type=float, default=6.0, help="GPU memory preservation in GB (default: 6.0)")
 parser.add_argument("--use_teacache", action='store_true', default=True, help="Enable TeaCache optimization (default: True)")
 parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression quality (lower is better, default: 16)")
+parser.add_argument("--fps", type=int, default=30, help="Frames per second for output video (default: 30)")
 # 添加多进程参数
-parser.add_argument("--max_workers", type=int, default=1, help="Maximum number of worker processes (default: 1)")
+parser.add_argument("--max_workers", type=int, default=5, help="Maximum number of worker processes (default: 5)")
 args = parser.parse_args()
 
 printMy(args)
@@ -92,7 +95,8 @@ def run(now_args, image, prompt="", seed = None):
         rs=now_args.rs,
         gpu_memory_preservation=now_args.gpu_memory_preservation,
         use_teacache=now_args.use_teacache,
-        mp4_crf=now_args.mp4_crf
+        mp4_crf=now_args.mp4_crf,
+        fps=now_args.fps
     )
 
 
