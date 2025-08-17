@@ -101,6 +101,28 @@ os.makedirs(outputs_folder, exist_ok=True)
 
 @torch.no_grad()
 def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf):
+    """
+    执行视频生成任务的主工作函数。该函数负责处理输入图像、文本提示、负向提示，并通过扩散模型生成视频帧，
+    最终将结果编码为MP4视频文件。
+
+    参数:
+        input_image (np.ndarray): 输入图像，形状为(H, W, C)，值范围[0, 255]。
+        prompt (str): 正向文本提示。
+        n_prompt (str): 负向文本提示。默认值: ""。
+        seed (int): 随机种子，用于控制采样过程的可重复性。默认值: 31337。
+        total_second_length (float): 视频总时长（秒）。范围: 1-120。默认值: 5。
+        latent_window_size (int): 潜空间中每段窗口的大小。范围: 1-33。默认值: 9。
+        steps (int): 去噪推理步数。范围: 1-100。默认值: 25。
+        cfg (float): 分类器自由引导比例（Classifier-Free Guidance Scale）。范围: 1.0-32.0。默认值: 1.0。
+        gs (float): 蒸馏引导比例（Distilled Guidance Scale）。范围: 1.0-32.0。默认值: 10.0。
+        rs (float): 引导重缩放因子（Guidance Rescale）。范围: 0.0-1.0。默认值: 0.0。
+        gpu_memory_preservation (float): GPU内存保留量（GB），用于模型加载/卸载策略。范围: 6-128。默认值: 6。
+        use_teacache (bool): 是否启用TeaCache优化。默认值: True。
+        mp4_crf (int): 输出MP4视频的质量参数（CRF值）。范围: 0-100。默认值: 16。
+
+    返回:
+        None: 结果通过stream.output_queue输出。
+    """
     total_latent_sections = (total_second_length * 30) / (latent_window_size * 4)
     total_latent_sections = int(max(round(total_latent_sections), 1))
 
