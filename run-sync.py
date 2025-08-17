@@ -58,6 +58,8 @@ parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression qua
 parser.add_argument("--fps", type=int, default=30, help="Frames per second for output video (default: 30)")
 # 处理完成关机,默认False
 parser.add_argument("--shutdown", action='store_true', default=False, help="Shutdown after processing (default: False)")
+# 分辨率 resolution 默认 640 只需在调用时传入更大的 resolution 值，如 768 或 1024
+parser.add_argument("--resolution", type=int, default=640, help="Resolution for output video (default: 640)")
 args = parser.parse_args()
 
 printMy(args)
@@ -96,7 +98,8 @@ def run(now_args, image, prompt="", seed = None):
         gpu_memory_preservation=now_args.gpu_memory_preservation,
         use_teacache=now_args.use_teacache,
         mp4_crf=now_args.mp4_crf,
-        fps=now_args.fps
+        fps=now_args.fps,
+        resolution=now_args.resolution
     )
 
 
