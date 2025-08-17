@@ -105,9 +105,10 @@ if __name__ == "__main__":
         sourceDir = args.source.split(',')
         printMy("sourceDir:", sourceDir)
 
-        # 使用进程池处理多个文件
+        # 使用进程池处理多个文件，采用动态提交任务的方式
         with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = []
+            # 收集所有待处理的文件
+            all_files = []
             for dir in sourceDir:
                 printMy("dir:", dir)
                 # 深度遍历目录中所有图片
@@ -117,15 +118,41 @@ if __name__ == "__main__":
                         fileName, fileSuffix = os.path.splitext(file)
                         fileSuffix = fileSuffix.lower()
                         if fileSuffix in allImgType:
-                            # 提交任务到进程池
-                            future = executor.submit(run, args, os.path.join(root, file), args.prompt, args.seed)
-                            futures.append(future)
+                            all_files.append(os.path.join(root, file))
+            
+            # 动态提交任务
+            futures = {}
+            # 先提交一部分任务
+            initial_count = min(args.max_workers, len(all_files))
+            
+            for i in range(initial_count):
+                file = all_files[i]
+                future = executor.submit(run, args, file, args.prompt, args.seed)
+                futures[future] = file
+            
+            # 处理剩余的文件
+            remaining_files = all_files[initial_count:]
+            
+            # 当有任务完成时，提交新任务
+            while futures:
+                # 等待至少一个任务完成
+                done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
+                
+                # 处理已完成的任务
+                for future in done:
+                    file = futures.pop(future)
+                    try:
+                        future.result()
+                        printMy(f"Completed processing: {file}")
+                    except Exception as e:
+                        printMy(f"Error processing {file}: {e}")
+                
+                # 提交新任务以保持工作池满载
+                while remaining_files and len(futures) < args.max_workers:
+                    next_file = remaining_files.pop(0)
+                    future = executor.submit(run, args, next_file, args.prompt, args.seed)
+                    futures[future] = next_file
 
-            # 等待所有任务完成
-            for future in as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    printMy("error:", e)
+            printMy("All tasks completed")
     else:
         run(args, args.image, args.prompt, args.seed)
