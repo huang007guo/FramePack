@@ -56,6 +56,8 @@ parser.add_argument("--gpu_memory_preservation", type=float, default=6.0, help="
 parser.add_argument("--use_teacache", action='store_true', default=True, help="Enable TeaCache optimization (default: True)")
 parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression quality (lower is better, default: 16)")
 parser.add_argument("--fps", type=int, default=30, help="Frames per second for output video (default: 30)")
+# 处理完成关机,默认False
+parser.add_argument("--shutdown", action='store_true', default=False, help="Shutdown after processing (default: False)")
 args = parser.parse_args()
 
 printMy(args)
@@ -125,3 +127,7 @@ if __name__ == "__main__":
                             printMy("error:", e)
     else:
         run(args, args.image, args.prompt, args.seed)
+    # 处理完成关机
+    if args.shutdown:
+        os.system("shutdown -a")
+        os.system("shutdown -s -t 120")
