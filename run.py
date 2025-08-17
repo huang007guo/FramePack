@@ -14,6 +14,10 @@ import argparse
 import numpy as np
 from filetype.types import IMAGE as FILETYPE_IMAGE, VIDEO as FILETYPE_VIDEO
 
+# 添加多进程相关导入
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 allImgType = ["." + now_file_type.EXTENSION for now_file_type in FILETYPE_IMAGE]
 allImgType.append(".jpeg")
 
@@ -50,6 +54,8 @@ parser.add_argument("--rs", type=float, default=0.0, help="Guidance rescale fact
 parser.add_argument("--gpu_memory_preservation", type=float, default=6.0, help="GPU memory preservation in GB (default: 6.0)")
 parser.add_argument("--use_teacache", action='store_true', default=True, help="Enable TeaCache optimization (default: True)")
 parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression quality (lower is better, default: 16)")
+# 添加多进程参数
+parser.add_argument("--max_workers", type=int, default=1, help="Maximum number of worker processes (default: 1)")
 args = parser.parse_args()
 
 printMy(args)
@@ -94,21 +100,42 @@ if __name__ == "__main__":
     if args.source:
         sourceDir = args.source.split(',')
         printMy("sourceDir:", sourceDir)
-        for dir in sourceDir:
-            printMy("dir:", dir)
-            # 深度遍历目录中所有图片
-            for root, dirs, files in os.walk(dir):
-                for file in files:
-                    # 获取文件名和文件后缀
-                    fileName, fileSuffix = os.path.splitext(file)
-                    fileSuffix = fileSuffix.lower()
-                    if fileSuffix in allImgType:
+        
+        # 使用进程池处理多个文件，支持动态添加任务
+        with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
+            futures = {}
+            task_queue = []
+            
+            # 先收集所有任务
+            for dir in sourceDir:
+                printMy("dir:", dir)
+                # 深度遍历目录中所有图片
+                for root, dirs, files in os.walk(dir):
+                    for file in files:
+                        # 获取文件名和文件后缀
+                        fileName, fileSuffix = os.path.splitext(file)
+                        fileSuffix = fileSuffix.lower()
+                        if fileSuffix in allImgType:
+                            task_queue.append(os.path.join(root, file))
+            
+            # 动态提交任务并处理完成的任务
+            while futures or task_queue:
+                # 提交新任务直到达到最大工作进程数
+                while task_queue and len(futures) < args.max_workers:
+                    image_path = task_queue.pop(0)
+                    future = executor.submit(run, args, image_path, args.prompt, args.seed)
+                    futures[future] = image_path
+                
+                # 检查已完成的任务
+                if futures:
+                    # 等待至少一个任务完成
+                    done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
+                    for future in done:
+                        image_path = futures.pop(future)
                         try:
-                            # 获取图片路径
-                            filePath = os.path.join(root, file)
-                            printMy("filePath:", filePath)
-                            run(args, filePath, args.prompt, args.seed)
+                            future.result()
+                            printMy(f"完成任务: {image_path}")
                         except Exception as e:
-                            printMy("error:", e)
+                            printMy(f"任务 {image_path} 出错:", e)
     else:
         run(args, args.image, args.prompt, args.seed)
