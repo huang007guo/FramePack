@@ -23,7 +23,11 @@ allImgType.append(".jpeg")
 
 from PIL import Image
 
-from webui.base import worker
+# 修改导入方式，避免在主进程中加载模型
+def get_worker_function():
+    # 延迟导入，在子进程中才加载模型
+    from webui.base import worker
+    return worker
 
 def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     nowDateTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -58,7 +62,7 @@ parser.add_argument("--use_teacache", action='store_true', default=True, help="E
 parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression quality (lower is better, default: 16)")
 parser.add_argument("--fps", type=int, default=30, help="Frames per second for output video (default: 30)")
 # 添加多进程参数
-parser.add_argument("--max_workers", type=int, default=5, help="Maximum number of worker processes (default: 5)")
+parser.add_argument("--max_workers", type=int, default=1, help="Maximum number of worker processes (default: 1)")
 args = parser.parse_args()
 
 printMy(args)
@@ -80,6 +84,9 @@ def run(now_args, image, prompt="", seed = None):
     # 设置随机种子
     if seed is None:
         seed = np.random.randint(0, 2 ** 31)
+
+    # 获取worker函数（在子进程中加载模型）
+    worker = get_worker_function()
 
     # 调用worker函数
     worker(
@@ -119,25 +126,25 @@ if __name__ == "__main__":
                         fileSuffix = fileSuffix.lower()
                         if fileSuffix in allImgType:
                             all_files.append(os.path.join(root, file))
-            
+
             # 动态提交任务
             futures = {}
             # 先提交一部分任务
             initial_count = min(args.max_workers, len(all_files))
-            
+
             for i in range(initial_count):
                 file = all_files[i]
                 future = executor.submit(run, args, file, args.prompt, args.seed)
                 futures[future] = file
-            
+
             # 处理剩余的文件
             remaining_files = all_files[initial_count:]
-            
+
             # 当有任务完成时，提交新任务
             while futures:
                 # 等待至少一个任务完成
                 done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
-                
+
                 # 处理已完成的任务
                 for future in done:
                     file = futures.pop(future)
@@ -146,12 +153,34 @@ if __name__ == "__main__":
                         printMy(f"Completed processing: {file}")
                     except Exception as e:
                         printMy(f"Error processing {file}: {e}")
-                
+                        # 如果进程池损坏，重新创建
+                        if "BrokenProcessPool" in str(e):
+                            printMy("Process pool is broken, creating a new one...")
+                            # 重新提交剩余任务
+                            for remaining_file in remaining_files:
+                                try:
+                                    run(args, remaining_file, args.prompt, args.seed)
+                                    printMy(f"Processed {remaining_file} in main process")
+                                except Exception as inner_e:
+                                    printMy(f"Error processing {remaining_file}: {inner_e}")
+                            remaining_files = []
+                            break
+
                 # 提交新任务以保持工作池满载
                 while remaining_files and len(futures) < args.max_workers:
                     next_file = remaining_files.pop(0)
-                    future = executor.submit(run, args, next_file, args.prompt, args.seed)
-                    futures[future] = next_file
+                    try:
+                        future = executor.submit(run, args, next_file, args.prompt, args.seed)
+                        futures[future] = next_file
+                    except Exception as e:
+                        printMy(f"Failed to submit task for {next_file}: {e}")
+                        if "BrokenProcessPool" in str(e):
+                            # 如果进程池损坏，直接在主进程中处理剩余文件
+                            try:
+                                run(args, next_file, args.prompt, args.seed)
+                                printMy(f"Processed {next_file} in main process after pool failure")
+                            except Exception as inner_e:
+                                printMy(f"Error processing {next_file} in main process: {inner_e}")
 
             printMy("All tasks completed")
     else:
