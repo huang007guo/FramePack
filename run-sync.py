@@ -24,6 +24,7 @@ allImgType.append(".jpeg")
 from PIL import Image
 from webui.base import worker
 
+
 def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     nowDateTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     objects = [nowDateTime, *objects]
@@ -33,6 +34,7 @@ def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     except BaseException as e:
         print(traceback.format_exc())
         pass
+
 
 parser = argparse.ArgumentParser()
 
@@ -46,14 +48,17 @@ parser.add_argument("--prompt", type=str, default="", help="Text prompt for vide
 parser.add_argument("--prompt_arr", type=str, nargs='+', help="Text prompt for video generation")
 parser.add_argument("--n_prompt", type=str, default="", help="Negative prompt (default: '')")
 parser.add_argument("--seed", type=int, default=None, help="Random seed (default: 31337)")
-parser.add_argument("--total_second_length", type=float, default=5.0, help="Total video length in seconds (default: 5.0)")
+parser.add_argument("--total_second_length", type=float, default=5.0,
+                    help="Total video length in seconds (default: 5.0)")
 parser.add_argument("--latent_window_size", type=int, default=9, help="Latent window size (default: 9)")
 parser.add_argument("--steps", type=int, default=25, help="Number of inference steps (default: 25)")
 parser.add_argument("--cfg", type=float, default=1.0, help="Classifier-free guidance scale (default: 1.0)")
 parser.add_argument("--gs", type=float, default=10.0, help="Distilled guidance scale (default: 10.0)")
 parser.add_argument("--rs", type=float, default=0.0, help="Guidance rescale factor (default: 0.0)")
-parser.add_argument("--gpu_memory_preservation", type=float, default=6.0, help="GPU memory preservation in GB (default: 6.0)")
-parser.add_argument("--use_teacache", action='store_true', default=True, help="Enable TeaCache optimization (default: True)")
+parser.add_argument("--gpu_memory_preservation", type=float, default=6.0,
+                    help="GPU memory preservation in GB (default: 6.0)")
+parser.add_argument("--use_teacache", action='store_true', default=True,
+                    help="Enable TeaCache optimization (default: True)")
 parser.add_argument("--mp4_crf", type=int, default=16, help="MP4 compression quality (lower is better, default: 16)")
 parser.add_argument("--fps", type=int, default=30, help="Frames per second for output video (default: 30)")
 # 处理完成关机,默认False
@@ -64,12 +69,15 @@ args = parser.parse_args()
 
 printMy(args)
 
+
 # 在文件末尾添加以下代码
-def run(now_args, image, prompt="", seed = None):
+def run(now_args, image, prompt="", seed=None, file_name=None):
     # 检查是否提供了输入图像路径
     if image is None:
         raise ValueError("必须提供 --image 参数指定输入图像路径")
-
+    # 如果图片是路径识别图片名称
+    if file_name is None and type(image) == str:
+        file_name = os.path.basename(image)
     # # 检查是否提供了提示文本
     # if not args.prompt:
     #     raise ValueError("必须提供 --prompt 参数指定提示文本")
@@ -81,7 +89,6 @@ def run(now_args, image, prompt="", seed = None):
     # 设置随机种子
     if seed is None:
         seed = np.random.randint(0, 2 ** 31)
-
 
     # 调用worker函数
     worker(
@@ -99,7 +106,8 @@ def run(now_args, image, prompt="", seed = None):
         use_teacache=now_args.use_teacache,
         mp4_crf=now_args.mp4_crf,
         fps=now_args.fps,
-        resolution=now_args.resolution
+        resolution=now_args.resolution,
+        file_name=file_name
     )
 
 

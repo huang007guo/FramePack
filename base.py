@@ -87,7 +87,7 @@ os.makedirs(outputs_folder, exist_ok=True)
 
 
 @torch.no_grad()
-def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=""):
+def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None):
     """
     执行视频生成任务的主工作函数。该函数负责处理输入图像、文本提示、负向提示，并通过扩散模型生成视频帧，
     最终将结果编码为MP4视频文件。
@@ -305,7 +305,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
             if not high_vram:
                 unload_complete_models()
 
-            output_filename = os.path.join(outputs_folder, f'{file_name}_{job_id}_{total_generated_latent_frames}.mp4')
+            output_filename = os.path.join(outputs_folder, f'{file_name+"_" if file_name else ""}{job_id}_{total_generated_latent_frames}.mp4')
 
             save_bcthw_as_mp4(history_pixels, output_filename, fps=fps, crf=mp4_crf)
 
