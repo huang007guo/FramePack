@@ -109,6 +109,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
         resolution (int): 图像处理的分辨率。默认值: 640。
         fps (int): 输出视频的帧率。默认值: 30。
         file_name (str): 输出文件名。默认值: ""。
+        del_previous_file (bool): 是否删除之前的视频文件(留下最后一个视频)。默认值: False。
 
     返回:
         None: 结果通过stream.output_queue输出。
@@ -312,10 +313,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
             print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
 
             stream.output_queue.push(('file', output_filename))
-            if del_previous_file and previous_file:
-                os.remove(previous_file)
 
-            previous_file = output_filename
             if is_last_section:
                 break
     except:
