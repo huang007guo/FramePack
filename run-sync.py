@@ -6,9 +6,22 @@ import time
 import traceback
 import numpy as np
 
-from diffusers_helper.hf_login import login
-
 import os
+
+log_file_path = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), "./log.log")))
+def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
+    nowDateTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    objects = [nowDateTime, *objects]
+    print(*objects, sep=sep, end=end, file=file, flush=flush)
+    try:
+        print(*objects, sep=sep, end=end, file=open(log_file_path, 'a'), flush=flush)
+    except BaseException as e:
+        print(traceback.format_exc())
+        pass
+# 输出当前目录,使用管理员运行当前目录会变成: C:\Windows\System32
+printMy("当前目录:", os.getcwd())
+
+from diffusers_helper.hf_login import login
 
 import argparse
 import numpy as np
@@ -25,15 +38,7 @@ from PIL import Image
 from base import worker
 
 
-def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
-    nowDateTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    objects = [nowDateTime, *objects]
-    print(*objects, sep=sep, end=end, file=file, flush=flush)
-    try:
-        print(*objects, sep=sep, end=end, file=open("./log.log", 'a'), flush=flush)
-    except BaseException as e:
-        print(traceback.format_exc())
-        pass
+
 
 
 parser = argparse.ArgumentParser()

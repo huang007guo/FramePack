@@ -82,7 +82,7 @@ else:
 
 stream = AsyncStream()
 
-outputs_folder = './outputs/'
+outputs_folder = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './outputs/')))
 os.makedirs(outputs_folder, exist_ok=True)
 
 
