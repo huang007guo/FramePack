@@ -22,7 +22,7 @@ allImgType = ["." + now_file_type.EXTENSION for now_file_type in FILETYPE_IMAGE]
 allImgType.append(".jpeg")
 
 from PIL import Image
-from webui.base import worker
+from base import worker
 
 
 def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
