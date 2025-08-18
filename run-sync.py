@@ -65,6 +65,8 @@ parser.add_argument("--fps", type=int, default=30, help="Frames per second for o
 parser.add_argument("--shutdown", action='store_true', default=False, help="Shutdown after processing (default: False)")
 # 分辨率 resolution 默认 640 只需在调用时传入更大的 resolution 值，如 768 或 1024
 parser.add_argument("--resolution", type=int, default=640, help="Resolution for output video (default: 640)")
+parser.add_argument("--del_previous_file", action='store_true', default=False,
+                    help="Delete previous file (default: False)")
 args = parser.parse_args()
 
 printMy(args)
@@ -77,7 +79,7 @@ def run(now_args, image, prompt="", seed=None, file_name=None):
         raise ValueError("必须提供 --image 参数指定输入图像路径")
     # 如果图片是路径识别图片名称
     if file_name is None and type(image) == str:
-        file_name = os.path.basename(image)
+        file_name,file_suffix  = os.path.splitext(os.path.basename(image))
     # # 检查是否提供了提示文本
     # if not args.prompt:
     #     raise ValueError("必须提供 --prompt 参数指定提示文本")
@@ -107,7 +109,8 @@ def run(now_args, image, prompt="", seed=None, file_name=None):
         mp4_crf=now_args.mp4_crf,
         fps=now_args.fps,
         resolution=now_args.resolution,
-        file_name=file_name
+        file_name=file_name,
+        del_previous_file=now_args.del_previous_file,
     )
 
 

@@ -87,7 +87,7 @@ os.makedirs(outputs_folder, exist_ok=True)
 
 
 @torch.no_grad()
-def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None):
+def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None, del_previous_file=False):
     """
     执行视频生成任务的主工作函数。该函数负责处理输入图像、文本提示、负向提示，并通过扩散模型生成视频帧，
     最终将结果编码为MP4视频文件。
@@ -153,7 +153,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
         height, width = find_nearest_bucket(H, W, resolution=resolution)
         input_image_np = resize_and_center_crop(input_image, target_width=width, target_height=height)
 
-        Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{job_id}.png'))
+        Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{file_name+"_" if file_name else ""}{job_id}.png'))
 
         input_image_pt = torch.from_numpy(input_image_np).float() / 127.5 - 1
         input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
@@ -312,7 +312,10 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
             print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
 
             stream.output_queue.push(('file', output_filename))
+            if del_previous_file and previous_file:
+                os.remove(previous_file)
 
+            previous_file = output_filename
             if is_last_section:
                 break
     except:
