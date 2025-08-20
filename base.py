@@ -87,7 +87,7 @@ os.makedirs(outputs_folder, exist_ok=True)
 
 
 @torch.no_grad()
-def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None, del_previous_file=False):
+def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None, only_remain_last_file=False):
     """
     执行视频生成任务的主工作函数。该函数负责处理输入图像、文本提示、负向提示，并通过扩散模型生成视频帧，
     最终将结果编码为MP4视频文件。
@@ -109,7 +109,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
         resolution (int): 图像处理的分辨率。默认值: 640。
         fps (int): 输出视频的帧率。默认值: 30。
         file_name (str): 输出文件名。默认值: ""。
-        del_previous_file (bool): 是否删除之前的视频文件(留下最后一个视频)。默认值: False。
+        only_remain_last_file (bool): 是否只留下最后一个文件。默认值: False。
 
     返回:
         None: 结果通过stream.output_queue输出。
@@ -120,7 +120,8 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
     job_id = generate_timestamp()
 
     stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Starting ...'))))
-
+    # 所有生成的文件list
+    generated_files = []
     try:
         # Clean GPU
         if not high_vram:
@@ -313,6 +314,7 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
             print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
 
             stream.output_queue.push(('file', output_filename))
+            generated_files.append(output_filename)
 
             if is_last_section:
                 break
@@ -325,6 +327,9 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
             )
 
     stream.output_queue.push(('end', None))
+    # remove all but the last file
+    if only_remain_last_file and len(generated_files) > 1:
+        [os.remove(f) for f in generated_files[:-1]]
     return
 
 

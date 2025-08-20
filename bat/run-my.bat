@@ -12,7 +12,7 @@ set PIP_INSTALLER_LOCATION=%DIR%\python\get-pip.py
 
 
 
-"%DIR%\python\python.exe" %~dp0webui\run-sync.py --del_previous_file --shutdown --gpu_memory_preservation=12.0 --resolution=768 --total_second_length=10.0 -S=E:\tmp\image-to-video --fps=24 --prompt="Cute little girl, showing cute and lewd expressions, showing enchanting movements."
+"%DIR%\python\python.exe" %~dp0webui\run-sync.py --del_previous_file --shutdown --gpu_memory_preservation=12.0 --resolution=768 --total_second_length=10.0 -S=E:\tmp\image-to-video --fps=24 --prompt="Cute girl"
 
 :done
 pause

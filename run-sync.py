@@ -9,6 +9,8 @@ import numpy as np
 import os
 
 log_file_path = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), "./log.log")))
+
+
 def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     nowDateTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     objects = [nowDateTime, *objects]
@@ -18,6 +20,8 @@ def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     except BaseException as e:
         print(traceback.format_exc())
         pass
+
+
 # 输出当前目录,使用管理员运行当前目录会变成: C:\Windows\System32
 printMy("当前目录:", os.getcwd())
 
@@ -36,10 +40,6 @@ allImgType.append(".jpeg")
 
 from PIL import Image
 from base import worker
-
-
-
-
 
 parser = argparse.ArgumentParser()
 
@@ -70,11 +70,29 @@ parser.add_argument("--fps", type=int, default=30, help="Frames per second for o
 parser.add_argument("--shutdown", action='store_true', default=False, help="Shutdown after processing (default: False)")
 # 分辨率 resolution 默认 640 只需在调用时传入更大的 resolution 值，如 768 或 1024
 parser.add_argument("--resolution", type=int, default=640, help="Resolution for output video (default: 640)")
-parser.add_argument("--del_previous_file", action='store_true', default=False,
-                    help="Delete previous file (default: False)")
+
+
+# 指定时间关机,会完成最后一个后,格式: HH:MM:SS
+# parser.add_argument("--shutdown_time", type=str, default=None, help="Specify shutdown time (HH:MM:SS)")
+# 最大运行时间 HH,MM,SS 例如 0,0,1; 0,1,0
+parser.add_argument("--max_run_time", type=str, default=None, help="Maximum run time (HH:MM:SS)")
+# 转换完成删除源文件
+parser.add_argument("--del_source_file", action='store_true', default=False, help="Delete source file (default: False)")
+# 是否只留下最后一个生成的文件,默认False
+parser.add_argument("--only_remain_last_file", action='store_true', default=False,
+                    help="Only keep the last generated file (default: False)")
+
 args = parser.parse_args()
 
 printMy(args)
+
+if args.max_run_time:
+    # 转换为秒数
+    args.max_run_time = args.max_run_time.split(',')
+    args.max_run_time = sum([int(x) * 60 ** i for i, x in enumerate(args.max_run_time[::-1])])
+    printMy("max_run_time:", args.max_run_time)
+# 开始运行时间
+start_time = time.time()
 
 
 # 在文件末尾添加以下代码
@@ -84,7 +102,7 @@ def run(now_args, image, prompt="", seed=None, file_name=None):
         raise ValueError("必须提供 --image 参数指定输入图像路径")
     # 如果图片是路径识别图片名称
     if file_name is None and type(image) == str:
-        file_name,file_suffix  = os.path.splitext(os.path.basename(image))
+        file_name, file_suffix = os.path.splitext(os.path.basename(image))
     # # 检查是否提供了提示文本
     # if not args.prompt:
     #     raise ValueError("必须提供 --prompt 参数指定提示文本")
@@ -115,11 +133,11 @@ def run(now_args, image, prompt="", seed=None, file_name=None):
         fps=now_args.fps,
         resolution=now_args.resolution,
         file_name=file_name,
-        del_previous_file=now_args.del_previous_file,
+        only_remain_last_file=now_args.only_remain_last_file,
     )
 
 
-if __name__ == "__main__":
+def main():
     if args.source:
         sourceDir = args.source.split(',')
         printMy("sourceDir:", sourceDir)
@@ -132,6 +150,12 @@ if __name__ == "__main__":
             # 深度遍历目录中所有图片
             for root, dirs, files in os.walk(dir):
                 for file in files:
+                    if args.max_run_time and time.time() - start_time > args.max_run_time:
+                        printMy("已到最大运行时间,结束处理!")
+                        if args.shutdown:
+                            os.system("shutdown -a")
+                            os.system("shutdown -s -t 120")
+                        return
                     # 获取文件名和文件后缀
                     fileName, fileSuffix = os.path.splitext(file)
                     fileSuffix = fileSuffix.lower()
@@ -142,6 +166,8 @@ if __name__ == "__main__":
                             printMy("filePath:", filePath)
                             run(args, filePath, args.prompt, args.seed)
                             printMy("处理完成:", filePath)
+                            if args.del_source_file:
+                                os.remove(filePath)
                         except Exception as e:
                             printMy("error:", e)
     else:
@@ -150,3 +176,7 @@ if __name__ == "__main__":
     if args.shutdown:
         os.system("shutdown -a")
         os.system("shutdown -s -t 120")
+
+
+if __name__ == "__main__":
+    main()
