@@ -1,6 +1,9 @@
+import yaml
 from diffusers_helper.hf_login import login
 
 import os
+
+from future.moves import pickle
 
 os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
 
@@ -86,6 +89,12 @@ outputs_folder = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(_
 os.makedirs(outputs_folder, exist_ok=True)
 
 
+# 写入YAML文件
+def write_dict_to_yaml(file_path, data):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        yaml.dump(data, f, allow_unicode=True, indent=4)
+
+
 @torch.no_grad()
 def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution=640, fps=30, file_name=None, only_remain_last_file=False):
     """
@@ -156,6 +165,26 @@ def worker(input_image, prompt, n_prompt, seed, total_second_length, latent_wind
         input_image_np = resize_and_center_crop(input_image, target_width=width, target_height=height)
 
         Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{file_name+"_" if file_name else ""}{job_id}.png'))
+        param = {
+            "prompt": prompt,
+            "n_prompt": n_prompt,
+            "seed": seed,
+            "total_second_length": total_second_length,
+            "latent_window_size": latent_window_size,
+            "steps": steps,
+            "cfg": cfg,
+            "gs": gs,
+            "rs": rs,
+            "gpu_memory_preservation": gpu_memory_preservation,
+            "use_teacache": use_teacache,
+            "mp4_crf": mp4_crf,
+            "resolution": resolution,
+            "fps": fps,
+            "file_name": file_name,
+            "only_remain_last_file": only_remain_last_file
+        }
+        # 写入一个当前参数信息的json文件
+        write_dict_to_yaml(os.path.join(outputs_folder, f'{file_name + "_" if file_name else ""}{job_id}.yaml'), param)
 
         input_image_pt = torch.from_numpy(input_image_np).float() / 127.5 - 1
         input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
