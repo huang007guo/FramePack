@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
+import argparse
 import os
-import re
 import sys
 import time
 import traceback
-import numpy as np
-
-import os
 
 log_file_path = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), "./log.log")))
 
@@ -25,21 +22,7 @@ def printMy(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
 # 输出当前目录,使用管理员运行当前目录会变成: C:\Windows\System32
 printMy("当前目录:", os.getcwd())
 
-from diffusers_helper.hf_login import login
 
-import argparse
-import numpy as np
-from filetype.types import IMAGE as FILETYPE_IMAGE, VIDEO as FILETYPE_VIDEO
-
-# 添加多进程相关导入
-import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed, wait, FIRST_COMPLETED
-
-allImgType = ["." + now_file_type.EXTENSION for now_file_type in FILETYPE_IMAGE]
-allImgType.append(".jpeg")
-
-from PIL import Image
-from base import worker
 
 parser = argparse.ArgumentParser()
 
@@ -75,7 +58,9 @@ parser.add_argument("--resolution", type=int, default=640, help="Resolution for 
 # 指定时间关机,会完成最后一个后,格式: HH:MM:SS
 # parser.add_argument("--shutdown_time", type=str, default=None, help="Specify shutdown time (HH:MM:SS)")
 # 最大运行时间 HH,MM,SS 例如 0,0,1; 0,1,0
-parser.add_argument("--max_run_time", type=str, default=None, help="Maximum run time (HH:MM:SS)")
+parser.add_argument("--max_run_time", type=str, default=None, help="Maximum run time (HH,MM,SS)")
+# 计划的关机时间,支持当天和隔天
+parser.add_argument("--plan_shutdown_time", type=str, default=None, help="Planned shutdown time (HH:MM:SS)")
 # 转换完成删除源文件
 parser.add_argument("--del_source_file", action='store_true', default=False, help="Delete source file (default: False)")
 # 是否只留下最后一个生成的文件,默认False
@@ -86,6 +71,26 @@ args = parser.parse_args()
 
 printMy(args)
 
+if args.plan_shutdown_time and args.max_run_time is None:
+    # 转换为秒数
+    plan_shutdown_time_seconds = args.plan_shutdown_time.split(':')
+    plan_shutdown_time_seconds = sum([int(x) * 60 ** i for i, x in enumerate(plan_shutdown_time_seconds[::-1])])
+    # 当前时间 HH:MM:SS
+    current_time = time.strftime("%H:%M:%S", time.localtime())
+    current_time_seconds = sum([int(x) * 60 ** i for i, x in enumerate(current_time.split(':')[::-1])])
+    # 如果目标时间的秒小于当前代表是第二天
+    if plan_shutdown_time_seconds < current_time_seconds:
+        plan_shutdown_time_seconds += 24 * 60 * 60
+    # 计算差值
+    time_difference = plan_shutdown_time_seconds - current_time_seconds
+    args.max_run_time = "0,0," + str(time_difference)
+    # 输出日志,计算大概需要多少小时多少分钟多少秒
+    hours = time_difference // (60 * 60)
+    minutes = (time_difference - hours * 60 * 60) // 60
+    seconds = time_difference % 60
+    printMy("计划关机剩余时间:", f'{hours} 小时 {minutes} 分钟 {seconds} 秒')
+
+
 if args.max_run_time:
     # 转换为秒数
     args.max_run_time = args.max_run_time.split(',')
@@ -94,6 +99,16 @@ if args.max_run_time:
 # 开始运行时间
 start_time = time.time()
 
+import numpy as np
+from filetype.types import IMAGE as FILETYPE_IMAGE
+
+# 添加多进程相关导入
+
+allImgType = ["." + now_file_type.EXTENSION for now_file_type in FILETYPE_IMAGE]
+allImgType.append(".jpeg")
+
+from PIL import Image
+from base import worker
 
 # 在文件末尾添加以下代码
 def run(now_args, image, prompt="", seed=None, file_name=None):
