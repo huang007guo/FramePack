@@ -2,10 +2,18 @@ import yaml
 from diffusers_helper.hf_login import login
 
 import os
+# from huggingface_hub import snapshot_download
 
 from future.moves import pickle
 
+offline_mode = os.environ.get('OFFLINE_MODE', '0') == '1'
+print(f'Offline Mode: {offline_mode}')
+
+if offline_mode:
+    os.environ['HF_HUB_OFFLINE'] = '1'
+
 os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
+print(f'HF_HOME: {os.environ["HF_HOME"]}')
 
 import gradio as gr
 import torch
@@ -36,16 +44,57 @@ high_vram = free_mem_gb > 60
 print(f'Free VRAM {free_mem_gb} GB')
 print(f'High-VRAM Mode: {high_vram}')
 
-text_encoder = LlamaModel.from_pretrained("hunyuanvideo-community/HunyuanVideo", subfolder='text_encoder', torch_dtype=torch.float16).cpu()
-text_encoder_2 = CLIPTextModel.from_pretrained("hunyuanvideo-community/HunyuanVideo", subfolder='text_encoder_2', torch_dtype=torch.float16).cpu()
-tokenizer = LlamaTokenizerFast.from_pretrained("hunyuanvideo-community/HunyuanVideo", subfolder='tokenizer')
-tokenizer_2 = CLIPTokenizer.from_pretrained("hunyuanvideo-community/HunyuanVideo", subfolder='tokenizer_2')
-vae = AutoencoderKLHunyuanVideo.from_pretrained("hunyuanvideo-community/HunyuanVideo", subfolder='vae', torch_dtype=torch.float16).cpu()
+if offline_mode:
+    hunyuan_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), './hf_download/hub/models--hunyuanvideo-community--HunyuanVideo/snapshots/e8c2aaa66fe3742a32c11a6766aecbf07c56e773'))
+    if os.path.exists(hunyuan_model_path):
+        hunyuan_model_id = hunyuan_model_path
+    else:
+        raise FileNotFoundError(f"离线模式下找不到模型文件: {hunyuan_model_path}")
+    flux_redux_bfl_path = os.path.abspath(os.path.join(os.path.dirname(__file__), './hf_download/hub/models--lllyasviel--flux_redux_bfl/snapshots/45b801affc54ff2af4e5daf1b282e0921901db87'))
+    if os.path.exists(flux_redux_bfl_path):
+        flux_redux_bfl_id = flux_redux_bfl_path
+    else:
+        raise FileNotFoundError(f"离线模式下找不到模型文件: {flux_redux_bfl_path}")
+    model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), './hf_download/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79'))
+    if os.path.exists(model_path):
+        model_id = model_path
+    else:
+        raise FileNotFoundError(f"离线模式下找不到模型文件: {model_path}")
+else:
+    hunyuan_model_id = 'hunyuanvideo-community/HunyuanVideo'
+    flux_redux_bfl_id = 'lllyasviel/flux_redux_bfl'
+    model_id = 'lllyasviel/FramePackI2V_HY'
+print(f'Hunyuan Model ID: {hunyuan_model_id}')
+print(f'Flux Redux BFL ID: {flux_redux_bfl_id}')
+print(f'Model ID: {model_id}')
 
-feature_extractor = SiglipImageProcessor.from_pretrained("lllyasviel/flux_redux_bfl", subfolder='feature_extractor')
-image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", subfolder='image_encoder', torch_dtype=torch.float16).cpu()
+text_encoder = LlamaModel.from_pretrained(hunyuan_model_id, subfolder='text_encoder', torch_dtype=torch.float16, local_files_only=offline_mode).cpu()
+text_encoder_2 = CLIPTextModel.from_pretrained(hunyuan_model_id, subfolder='text_encoder_2', torch_dtype=torch.float16, local_files_only=offline_mode).cpu()
+tokenizer = LlamaTokenizerFast.from_pretrained(hunyuan_model_id, subfolder='tokenizer', local_files_only=offline_mode)
+tokenizer_2 = CLIPTokenizer.from_pretrained(hunyuan_model_id, subfolder='tokenizer_2', local_files_only=offline_mode)
+vae = AutoencoderKLHunyuanVideo.from_pretrained(hunyuan_model_id, subfolder='vae', torch_dtype=torch.float16, local_files_only=offline_mode).cpu()
+feature_extractor = SiglipImageProcessor.from_pretrained(flux_redux_bfl_id, subfolder='feature_extractor', local_files_only=offline_mode)
+image_encoder = SiglipVisionModel.from_pretrained(flux_redux_bfl_id, subfolder='image_encoder', torch_dtype=torch.float16, local_files_only=offline_mode).cpu()
+transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(model_id, torch_dtype=torch.bfloat16, local_files_only=offline_mode).cpu()
+# transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16, local_files_only=offline_mode).cpu()
+# 预先下载模型（仅在联网模式下）
+# if not offline_mode:
+#     try:
+#         snapshot_download(
+#             repo_id="lllyasviel/FramePackI2V_HY",
+#             local_dir=os.path.abspath(os.path.join(os.path.dirname(__file__), './hf_download/hub/models--lllyasviel--FramePackI2V_HY'))
+#         )
+#     except Exception as e:
+#         print(f"模型下载失败: {e}")
+#
+# # 然后使用本地路径加载
+# model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), './hf_download/hub/models--lllyasviel--FramePackI2V_HY'))
+# transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(
+#     model_path if offline_mode else 'lllyasviel/FramePackI2V_HY',
+#     torch_dtype=torch.bfloat16,
+#     local_files_only=offline_mode
+# ).cpu()
 
-transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
 
 vae.eval()
 text_encoder.eval()

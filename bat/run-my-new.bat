@@ -32,7 +32,7 @@ set PIP_INSTALLER_LOCATION=%DIR%\python\get-pip.py
 
 
 REM "%DIR%\python\python.exe" %~dp0webui\run-sync.py --max_run_time="7,10,1" --del_source_file --only_remain_last_file --shutdown --gpu_memory_preservation=12.0 --resolution=1024 --total_second_length=15.0 -S=E:\tmp\image-to-video\run衣服 --fps=15 --prompt="a beautiful little girl"
-"%DIR%\python\python.exe" %~dp0webui\run-sync.py --plan_shutdown_time="5:45:0" --del_source_file --only_remain_last_file --shutdown --gpu_memory_preservation=12.0 --resolution=1024 --total_second_length=15.0 -S=E:\tmp\image-to-video\run衣服 --fps=15 --prompt="a beautiful little girl"
+"%DIR%\python\python.exe" %~dp0webui\run-sync.py --offline_mode --plan_shutdown_time="5:45:0" --del_source_file --only_remain_last_file --shutdown --gpu_memory_preservation=12.0 --resolution=1024 --total_second_length=15.0 -S=E:\tmp\image-to-video\run衣服 --fps=15 --prompt="a beautiful little girl"
 
 REM :done
 pause

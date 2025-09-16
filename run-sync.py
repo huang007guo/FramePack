@@ -66,10 +66,14 @@ parser.add_argument("--del_source_file", action='store_true', default=False, hel
 # 是否只留下最后一个生成的文件,默认False
 parser.add_argument("--only_remain_last_file", action='store_true', default=False,
                     help="Only keep the last generated file (default: False)")
+# offline_mode
+parser.add_argument("--offline_mode", action='store_true', default=False, help="Offline mode (default: False)")
 
 args = parser.parse_args()
 
 printMy(args)
+if args.offline_mode:
+    os.environ["OFFLINE_MODE"] = '1'
 
 if args.plan_shutdown_time and args.max_run_time is None:
     # 转换为秒数
